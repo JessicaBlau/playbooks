@@ -1,10 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { ALLOWED_ACTIONS, ACTION_LABELS, type Action, type Trigger } from '../types/domain';
 import { TriggerSelect } from './TriggerSelect';
+import { ErrorBanner } from './ErrorBanner';
 
 interface PlaybookFormProps {
-  onSubmit: (name: string, trigger: Trigger, actions: Action[]) => Promise<void>;
+  // Returns whether the create succeeded, so the form can decide whether to
+  // clear the user's input — it must NOT reset on failure (e.g. a 400 from
+  // an over-length name), or the user loses everything they typed.
+  onSubmit: (name: string, trigger: Trigger, actions: Action[]) => Promise<boolean>;
 }
+
+const MAX_NAME_LENGTH = 100;
 
 const MAX_ACTIONS = 3;
 
@@ -46,10 +52,12 @@ export function PlaybookForm({ onSubmit }: PlaybookFormProps) {
 
     setSubmitting(true);
     try {
-      await onSubmit(name.trim(), trigger, actions);
-      setName('');
-      setTrigger('');
-      setActions([]);
+      const succeeded = await onSubmit(name.trim(), trigger, actions);
+      if (succeeded) {
+        setName('');
+        setTrigger('');
+        setActions([]);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -59,7 +67,12 @@ export function PlaybookForm({ onSubmit }: PlaybookFormProps) {
     <form onSubmit={handleSubmit}>
       <div>
         <label htmlFor="playbook-name">Name</label>
-        <input id="playbook-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input
+          id="playbook-name"
+          value={name}
+          maxLength={MAX_NAME_LENGTH}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
 
       <div>
@@ -73,7 +86,7 @@ export function PlaybookForm({ onSubmit }: PlaybookFormProps) {
           const checked = actions.includes(action);
           const disabled = !checked && actions.length >= MAX_ACTIONS;
           return (
-            <label key={action} style={{ display: 'block' }}>
+            <label key={action}>
               <input
                 type="checkbox"
                 checked={checked}
@@ -86,7 +99,7 @@ export function PlaybookForm({ onSubmit }: PlaybookFormProps) {
         })}
       </fieldset>
 
-      {validationError && <p role="alert">{validationError}</p>}
+      <ErrorBanner message={validationError} />
 
       <button type="submit" disabled={submitting}>
         {submitting ? 'Creating…' : 'Create Playbook'}

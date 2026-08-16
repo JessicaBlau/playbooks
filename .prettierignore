@@ -1,0 +1,7 @@
+node_modules
+dist
+build
+backend/prisma/migrations
+.pipeline
+.review
+package-lock.json

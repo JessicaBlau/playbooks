@@ -8,7 +8,7 @@ interface PlaybookListItemProps {
 
 export function PlaybookListItem({ playbook, onDelete, deleting }: PlaybookListItemProps) {
   return (
-    <li>
+    <li className="playbook-card">
       <strong>{playbook.name}</strong> — {TRIGGER_LABELS[playbook.trigger]}
       <ul>
         {playbook.actions.map((action) => (

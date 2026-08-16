@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 export function createApp(): Express {
   const app = express();
+  app.disable('x-powered-by');
 
   const frontendOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173';
   app.use(cors({ origin: frontendOrigin }));
@@ -17,6 +18,12 @@ export function createApp(): Express {
   app.use('/auth', authRouter);
   app.use('/playbooks', playbooksRouter);
   app.use('/simulateTrigger', simulateRouter);
+
+  // Every route above returns JSON; an unmatched path shouldn't fall
+  // through to Express's default HTML 404 page and break that contract.
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
 
   app.use(errorHandler);
 

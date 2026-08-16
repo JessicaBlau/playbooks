@@ -13,7 +13,7 @@ export function PlaybookList({ playbooks, onDelete, deletingIds }: PlaybookListP
   }
 
   return (
-    <ul>
+    <ul className="playbook-list">
       {playbooks.map((playbook) => (
         <PlaybookListItem
           key={playbook.id}

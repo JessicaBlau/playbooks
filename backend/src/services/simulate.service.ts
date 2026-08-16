@@ -26,9 +26,17 @@ export async function simulateTrigger(userId: string, input: unknown): Promise<S
 
   // Scoped to the caller's own playbooks — simulating across all users would
   // leak other users' playbook names/actions, breaking the ownership boundary
-  // already enforced on playbook CRUD.
-  const playbooks = await prisma.playbook.findMany({ where: { userId } });
+  // already enforced on playbook CRUD. Trigger is filtered here too (not
+  // just via matchPlaybooks below) so the DB does the filtering — consistent
+  // with the @@index([userId]) precedent of pushing userId-scoped filtering
+  // into SQL rather than transferring every row over the wire first.
+  const playbooks = await prisma.playbook.findMany({
+    where: { userId, trigger: trigger as Trigger },
+  });
 
+  // Redundant given the query above already filters by trigger, but kept so
+  // this unit-tested pure function stays exercised by real request paths,
+  // not just its own test file.
   const matches = matchPlaybooks(
     playbooks.map((p) => ({
       id: p.id,

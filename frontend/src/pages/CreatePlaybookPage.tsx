@@ -12,10 +12,6 @@ export function CreatePlaybookPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    void loadPlaybooks();
-  }, []);
-
   async function loadPlaybooks() {
     setLoading(true);
     try {
@@ -28,13 +24,19 @@ export function CreatePlaybookPage() {
     }
   }
 
-  async function handleCreate(name: string, trigger: Trigger, actions: Action[]) {
+  useEffect(() => {
+    void loadPlaybooks();
+  }, []);
+
+  async function handleCreate(name: string, trigger: Trigger, actions: Action[]): Promise<boolean> {
     setError(null);
     try {
       const { playbook } = await createPlaybook(name, trigger, actions);
       setPlaybooks((current) => [playbook, ...current]);
+      return true;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to create playbook.');
+      return false;
     }
   }
 

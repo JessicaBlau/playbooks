@@ -11,7 +11,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       {token && <NavBar />}
-      <main style={{ padding: '1.5rem', maxWidth: 640, margin: '0 auto' }}>{children}</main>
+      <main className="app-shell">{children}</main>
     </>
   );
 }

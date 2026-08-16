@@ -9,9 +9,7 @@ const createdEmails: string[] = [];
 async function registerUser(): Promise<{ email: string; token: string; userId: string }> {
   const email = uniqueEmail('playbooks');
   createdEmails.push(email);
-  const res = await request(app)
-    .post('/auth/register')
-    .send({ email, password: 'password123' });
+  const res = await request(app).post('/auth/register').send({ email, password: 'password123' });
   return { email, token: res.body.token, userId: res.body.user.id };
 }
 
@@ -136,7 +134,7 @@ describe('GET /playbooks', () => {
     expect(res.body.playbooks[0]).toMatchObject({ name: 'Visible playbook' });
   });
 
-  it('only returns the requesting user\'s own playbooks (cross-user isolation)', async () => {
+  it("only returns the requesting user's own playbooks (cross-user isolation)", async () => {
     const userA = await registerUser();
     const userB = await registerUser();
 
@@ -149,12 +147,8 @@ describe('GET /playbooks', () => {
       .set('Authorization', `Bearer ${userB.token}`)
       .send({ name: "B's playbook", trigger: 'PHISHING_ALERT', actions: ['BLOCK_IP'] });
 
-    const resA = await request(app)
-      .get('/playbooks')
-      .set('Authorization', `Bearer ${userA.token}`);
-    const resB = await request(app)
-      .get('/playbooks')
-      .set('Authorization', `Bearer ${userB.token}`);
+    const resA = await request(app).get('/playbooks').set('Authorization', `Bearer ${userA.token}`);
+    const resB = await request(app).get('/playbooks').set('Authorization', `Bearer ${userB.token}`);
 
     expect(resA.body.playbooks).toHaveLength(1);
     expect(resA.body.playbooks[0].name).toBe("A's playbook");

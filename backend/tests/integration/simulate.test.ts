@@ -9,9 +9,7 @@ const createdEmails: string[] = [];
 async function registerUser(): Promise<{ email: string; token: string }> {
   const email = uniqueEmail('simulate');
   createdEmails.push(email);
-  const res = await request(app)
-    .post('/auth/register')
-    .send({ email, password: 'password123' });
+  const res = await request(app).post('/auth/register').send({ email, password: 'password123' });
   return { email, token: res.body.token };
 }
 
@@ -72,9 +70,7 @@ describe('POST /simulateTrigger', () => {
     const userA = await registerUser();
     const userB = await registerUser();
 
-    await createPlaybook(userA.token, "A's malware playbook", 'MALWARE_DETECTED', [
-      'ISOLATE_HOST',
-    ]);
+    await createPlaybook(userA.token, "A's malware playbook", 'MALWARE_DETECTED', ['ISOLATE_HOST']);
     // userB has no playbooks at all for this trigger.
 
     const res = await request(app)

@@ -1,3 +1,5 @@
+import { clearSession, getToken, notifyUnauthorized } from './authStorage';
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4010';
 
 export class ApiError extends Error {
@@ -20,7 +22,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
   if (options.auth) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -33,9 +35,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   });
 
   if (response.status === 401 && options.auth) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/';
+    // Clear storage here (synchronous, immediate) and let the auth layer
+    // react to the event for the React-state side of logging out — this
+    // module has no router/context access and shouldn't force a full-page
+    // reload for what the SPA can handle as a normal state change.
+    clearSession();
+    notifyUnauthorized();
   }
 
   if (response.status === 204) {

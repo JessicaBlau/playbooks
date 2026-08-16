@@ -16,7 +16,10 @@ vi.mock('../src/types/domain', async (importOriginal) => {
   const actual = await importOriginal<typeof DomainModule>();
   return {
     ...actual,
-    ALLOWED_ACTIONS: [...actual.ALLOWED_ACTIONS, 'QUARANTINE_FILE'] as unknown as typeof actual.ALLOWED_ACTIONS,
+    ALLOWED_ACTIONS: [
+      ...actual.ALLOWED_ACTIONS,
+      'QUARANTINE_FILE',
+    ] as unknown as typeof actual.ALLOWED_ACTIONS,
     ACTION_LABELS: {
       ...actual.ACTION_LABELS,
       QUARANTINE_FILE: 'Quarantine File',
@@ -68,5 +71,58 @@ describe('PlaybookForm', () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith('Contain malware', 'MALWARE_DETECTED', ['ISOLATE_HOST']);
+  });
+
+  // Regression test for a real bug found in review: PlaybookForm used to
+  // reset its fields unconditionally after `await onSubmit(...)` resolved,
+  // even when the submission failed server-side (e.g. a 400 from an
+  // over-length name). Because CreatePlaybookPage.handleCreate caught its
+  // own errors and never rethrew, the returned promise always resolved
+  // "successfully" from PlaybookForm's point of view, so a failed create
+  // silently wiped whatever the user had typed. The fix: onSubmit now
+  // returns Promise<boolean>, and PlaybookForm only clears fields when that
+  // resolves true. These two tests fail if that condition is ever removed
+  // (i.e. if the reset goes back to running unconditionally on any
+  // settled promise).
+  it('does NOT clear the name/trigger/actions when onSubmit resolves false (failed create)', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(false);
+    render(<PlaybookForm onSubmit={onSubmit} />);
+
+    const nameInput = screen.getByLabelText('Name') as HTMLInputElement;
+    const triggerSelect = screen.getByLabelText('Trigger') as HTMLSelectElement;
+    const isolateHost = screen.getByLabelText('Isolate Host') as HTMLInputElement;
+
+    await user.type(nameInput, 'Contain malware');
+    await user.selectOptions(triggerSelect, 'MALWARE_DETECTED');
+    await user.click(isolateHost);
+    await user.click(screen.getByRole('button', { name: /create playbook/i }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    // The whole point of the fix: a failed submission must not destroy the
+    // user's in-progress input.
+    expect(nameInput.value).toBe('Contain malware');
+    expect(triggerSelect.value).toBe('MALWARE_DETECTED');
+    expect(isolateHost.checked).toBe(true);
+  });
+
+  it('clears the name/trigger/actions when onSubmit resolves true (successful create)', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<PlaybookForm onSubmit={onSubmit} />);
+
+    const nameInput = screen.getByLabelText('Name') as HTMLInputElement;
+    const triggerSelect = screen.getByLabelText('Trigger') as HTMLSelectElement;
+    const isolateHost = screen.getByLabelText('Isolate Host') as HTMLInputElement;
+
+    await user.type(nameInput, 'Contain malware');
+    await user.selectOptions(triggerSelect, 'MALWARE_DETECTED');
+    await user.click(isolateHost);
+    await user.click(screen.getByRole('button', { name: /create playbook/i }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(nameInput.value).toBe('');
+    expect(triggerSelect.value).toBe('');
+    expect(isolateHost.checked).toBe(false);
   });
 });

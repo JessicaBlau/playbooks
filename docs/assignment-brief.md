@@ -13,28 +13,35 @@ The task is expected to take 0.5-1 days.
 ## Core Features
 
 ### 1. User Authentication
+
 - Basic email-based login/registration
 - Store users in the database
 - Use basic token system to protect routes
 
 ### 2. Playbooks Management
+
 Each playbook includes:
+
 - A name
 - A trigger (e.g., Malware Detected, Login Attempt, Phishing Alert)
 - A list of actions (choose from: Isolate Host, Notify Admin, Block IP)
 
 Users can:
+
 - Create a new playbook (max 1 trigger + 1-3 actions)
 - View their existing playbooks
 - Delete a playbook (editing is optional)
 
 ### 3. Simulation
+
 On the dashboard:
+
 - Select a trigger to simulate an event
 - Show which playbooks match the trigger
 - Display the list of actions that would run
 
 ### 4. Interface
+
 - Minimal React app
 - 3 pages:
   - Login/Register
@@ -44,6 +51,7 @@ On the dashboard:
 ## Technical Requirements
 
 ### Backend
+
 - Node.js / TypeScript
 - Database of choice: Postgres / MongoDB / MySQL etc.
 - Use asynchronous methodologies
@@ -53,6 +61,7 @@ On the dashboard:
   - `/simulateTrigger` (POST)
 
 ### Frontend
+
 - React
 - Communication between the client and server should be based on REST or GraphQL calls
 - The UI should be easy to work with (not required to spend too much time on CSS)

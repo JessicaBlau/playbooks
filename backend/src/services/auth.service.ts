@@ -26,10 +26,32 @@ export interface AuthResult {
   user: { id: string; email: string };
 }
 
+// Maps zod's raw issues to messages that name the field and avoid leaking
+// library/implementation phrasing (e.g. zod's default "String must contain
+// at most 72 character(s)" for the password) straight into the client.
+function formatCredentialsError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  if (!issue) {
+    return 'email and password are required';
+  }
+
+  const field = issue.path[0];
+  if (field === 'email') {
+    return 'email must be a valid email address';
+  }
+  if (field === 'password') {
+    if (issue.code === 'too_small') return 'password must be at least 8 characters';
+    if (issue.code === 'too_big') return 'password must be 72 characters or fewer';
+    return 'password is invalid';
+  }
+
+  return field ? `${String(field)} is invalid` : 'email and password are required';
+}
+
 function parseCredentials(input: unknown): { email: string; password: string } {
   const result = credentialsSchema.safeParse(input);
   if (!result.success) {
-    throw new AppError(400, result.error.issues[0]?.message ?? 'Invalid email or password');
+    throw new AppError(400, formatCredentialsError(result.error));
   }
   return result.data;
 }

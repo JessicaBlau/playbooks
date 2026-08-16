@@ -19,9 +19,7 @@ afterAll(async () => {
 describe('POST /auth/register', () => {
   it('registers a new user and returns a token + user', async () => {
     const email = freshEmail();
-    const res = await request(app)
-      .post('/auth/register')
-      .send({ email, password: 'password123' });
+    const res = await request(app).post('/auth/register').send({ email, password: 'password123' });
 
     expect(res.status).toBe(201);
     expect(res.body.token).toEqual(expect.any(String));
@@ -63,6 +61,37 @@ describe('POST /auth/register', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('names the field in the error message for an invalid email, not a raw zod string', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email: 'not-an-email', password: 'password123' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(expect.any(String));
+    expect(res.body.error.toLowerCase()).toContain('email');
+  });
+
+  it('names the field and gives friendly copy for a too-short password, not the raw zod/bcrypt-leaking string', async () => {
+    const email = freshEmail();
+    const res = await request(app).post('/auth/register').send({ email, password: 'short' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.toLowerCase()).toContain('password');
+    // Must not leak zod's default phrasing or bcrypt's byte-limit detail.
+    expect(res.body.error).not.toMatch(/must contain (at least|at most)/i);
+  });
+
+  it('names the field and gives friendly copy for an over-long password, not a raw bcrypt-byte-limit string', async () => {
+    const email = freshEmail();
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ email, password: 'a'.repeat(100) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.toLowerCase()).toContain('password');
+    expect(res.body.error).not.toMatch(/must contain (at least|at most)/i);
+  });
 });
 
 describe('POST /auth/login', () => {
@@ -82,9 +111,7 @@ describe('POST /auth/login', () => {
     const email = freshEmail();
     await request(app).post('/auth/register').send({ email, password: 'password123' });
 
-    const res = await request(app)
-      .post('/auth/login')
-      .send({ email, password: 'wrongPassword1' });
+    const res = await request(app).post('/auth/login').send({ email, password: 'wrongPassword1' });
 
     expect(res.status).toBe(401);
     expect(res.body.error).toEqual(expect.any(String));
@@ -124,7 +151,9 @@ describe('POST /auth/login', () => {
     // and log in with an uppercased version of the same address.
     await request(app).post('/auth/register').send({ email, password });
 
-    const res = await request(app).post('/auth/login').send({ email: email.toUpperCase(), password });
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: email.toUpperCase(), password });
 
     expect(res.status).toBe(200);
     expect(res.body.token).toEqual(expect.any(String));

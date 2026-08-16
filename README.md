@@ -80,20 +80,27 @@ npm run test:backend   # unit tests + Supertest integration tests (requires Post
 npm run test:frontend  # component tests
 ```
 
-CI (`.github/workflows/ci.yml`) runs both suites, plus both typechecks and the frontend production build, against a real Postgres service container on every push and PR.
+CI (`.github/workflows/ci.yml`) runs both suites, plus both typechecks, the frontend production build, and lint/format checks, against a real Postgres service container on every push and PR.
+
+## Linting & formatting
+
+```bash
+npm run lint          # ESLint across both workspaces
+npm run format:check  # Prettier check (npm run format to auto-fix)
+```
 
 ## API
 
 All bodies/responses are JSON. Protected routes require `Authorization: Bearer <token>`.
 
-| Method | Path                | Auth | Description                                      |
-| ------ | ------------------- | ---- | ------------------------------------------------- |
-| POST   | `/auth/register`    | No   | Create a user, returns a token                    |
-| POST   | `/auth/login`       | No   | Log in, returns a token                            |
-| GET    | `/playbooks`        | Yes  | List the current user's playbooks                  |
-| POST   | `/playbooks`        | Yes  | Create a playbook (1 trigger, 1-3 actions)          |
-| DELETE | `/playbooks/:id`    | Yes  | Delete a playbook you own                           |
-| POST   | `/simulateTrigger`  | Yes  | Given a trigger, return matching playbooks + actions |
+| Method | Path               | Auth | Description                                          |
+| ------ | ------------------ | ---- | ---------------------------------------------------- |
+| POST   | `/auth/register`   | No   | Create a user, returns a token                       |
+| POST   | `/auth/login`      | No   | Log in, returns a token                              |
+| GET    | `/playbooks`       | Yes  | List the current user's playbooks                    |
+| POST   | `/playbooks`       | Yes  | Create a playbook (1 trigger, 1-3 actions)           |
+| DELETE | `/playbooks/:id`   | Yes  | Delete a playbook you own                            |
+| POST   | `/simulateTrigger` | Yes  | Given a trigger, return matching playbooks + actions |
 
 Triggers: `MALWARE_DETECTED`, `LOGIN_ATTEMPT`, `PHISHING_ALERT`.
 Actions: `ISOLATE_HOST`, `NOTIFY_ADMIN`, `BLOCK_IP`.
@@ -117,4 +124,7 @@ Short version of the trade-offs behind the stack and structure choices, for anyo
 - **Ownership scoping enforced at the query level, not post-fetch filtering.** Every read/write (`listPlaybooks`, `deletePlaybook`, `simulateTrigger`) filters by `userId` in the Prisma `where` clause itself, so there's no code path that fetches another user's row into memory before checking ownership.
 - **`deletePlaybook` uses one atomic `deleteMany({ where: { id, userId } })`** rather than a `findUnique` + `delete` pair, closing a TOCTOU gap between the ownership check and the delete.
 - **CORS restricted to `FRONTEND_ORIGIN`, not left wide open.** Not strictly required — the JWT-in-header (not cookie) auth model means there's no CSRF vector either way — but it's a one-line hardening with no functional cost.
+- **Two validation approaches on the backend, deliberately.** `zod` validates auth payloads (`credentialsSchema` in `auth.service.ts`) — external, free-text input (email format, password length) where a schema library's built-in checks and coercion are the right tool. Playbook input uses a hand-rolled pure function (`domain/validatePlaybookInput.ts`) instead, because it's business-rule validation over a small fixed domain (exactly the 3 triggers/actions, 1-3 action count) that's more natural to express and unit-test as plain TypeScript than as a schema, and it's exercised directly by unit tests with zero framework coupling. Not an oversight — each is the better fit for what it validates.
+- **`LoginForm`/`RegisterForm` use native HTML5 validation (`required`, `minLength`, `type="email"`); `PlaybookForm` validates by hand in `handleSubmit`.** The credentials forms only need single-field, built-in-checkable constraints, so the browser's native validation is the least code that does the job. `PlaybookForm`'s "at least 1 action selected" rule spans multiple checkbox inputs — not expressible as a single HTML attribute — so it's hand-rolled there. Same reasoning as the backend validation split above, applied to the frontend.
+- **Backend runs via `tsx` directly in both dev and `start`, with no compiled `dist/` output.** `npm run typecheck` (`tsc --noEmit`) is a type-check gate, not a build step — nothing is ever emitted. For a take-home app that isn't being deployed to a Node-only production host, adding a real `tsc` build (with `outDir`, a `dist/index.js` entry point, and keeping it in sync with the Prisma-generated client's own output location) would be infrastructure with no audience; `tsx` gets the same TypeScript-source-of-truth benefit with less to maintain.
 - **What's deliberately not here:** editing playbooks (marked optional in the brief), rate limiting, refresh tokens/logout endpoint, and email verification. All would be reasonable in a real product; none are asked for, and adding them would be scope creep against a "0.5–1 day" exercise.

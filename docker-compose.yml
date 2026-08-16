@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: checkpoint
       POSTGRES_DB: checkpoint
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - checkpoint_pg_data:/var/lib/postgresql/data
 
