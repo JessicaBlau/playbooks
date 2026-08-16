@@ -4,11 +4,20 @@ import { AppError } from '../middleware/AppError.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { signToken } from '../utils/jwt.js';
 
+// Prisma's unique-constraint violation (P2002). Checked structurally rather
+// than via `instanceof Prisma.PrismaClientKnownRequestError` because that
+// type isn't resolvable under this project's NodeNext module resolution.
+function isUniqueConstraintError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002';
+}
+
 const credentialsSchema = z.object({
+  // Normalize before validating format, so a whitespace-padded but otherwise
+  // valid address (e.g. from a trailing space on paste) isn't rejected.
   email: z
     .string()
-    .email()
-    .transform((email) => email.trim().toLowerCase()),
+    .transform((email) => email.trim().toLowerCase())
+    .pipe(z.string().email()),
   password: z.string().min(8).max(72),
 });
 
@@ -34,10 +43,23 @@ export async function register(input: unknown): Promise<AuthResult> {
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { email, passwordHash },
-    select: { id: true, email: true },
-  });
+
+  let user: { id: string; email: string };
+  try {
+    user = await prisma.user.create({
+      data: { email, passwordHash },
+      select: { id: true, email: true },
+    });
+  } catch (err) {
+    // The findUnique check above is a fast-path convenience; two requests can
+    // still race past it before either create() commits. The unique
+    // constraint on email is the real guard — translate its violation into
+    // the same 409 the fast-path would have returned.
+    if (isUniqueConstraintError(err)) {
+      throw new AppError(409, 'Email is already registered');
+    }
+    throw err;
+  }
 
   const token = signToken({ sub: user.id, email: user.email });
   return { token, user };

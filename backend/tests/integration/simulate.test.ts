@@ -110,4 +110,16 @@ describe('POST /simulateTrigger', () => {
     const res = await request(app).post('/simulateTrigger').send({ trigger: 'MALWARE_DETECTED' });
     expect(res.status).toBe(401);
   });
+
+  it('rejects a raw JSON `null` body with 400, not 500', async () => {
+    const { token } = await registerUser();
+    const res = await request(app)
+      .post('/simulateTrigger')
+      .set('Authorization', `Bearer ${token}`)
+      .type('json')
+      .send('null');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(expect.any(String));
+  });
 });

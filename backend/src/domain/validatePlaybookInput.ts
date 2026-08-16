@@ -14,7 +14,10 @@ export function validatePlaybookInput(input: {
 
   if (typeof input.name !== 'string' || input.name.trim().length === 0) {
     errors.push('name must be a non-empty string');
-  } else if (input.name.length > 100) {
+  } else if (input.name.trim().length > 100) {
+    // Checked against the trimmed length since playbooks.service persists
+    // the trimmed value — a name that's only too long due to surrounding
+    // whitespace should not be rejected.
     errors.push('name must be 100 characters or fewer');
   }
 

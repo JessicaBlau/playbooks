@@ -36,7 +36,7 @@ Chosen because this is a small, well-defined REST CRUD app — Express keeps the
    cp frontend/.env.example frontend/.env
    ```
 
-   Edit `backend/.env` and set a real `JWT_SECRET` (any long random string). The default `DATABASE_URL` matches the `docker-compose.yml` Postgres service, so it works as-is if you used step 2.
+   Edit `backend/.env` and set a real `JWT_SECRET` (any long random string). The default `DATABASE_URL` matches the `docker-compose.yml` Postgres service, so it works as-is if you used step 2. `FRONTEND_ORIGIN` controls which origin the API accepts CORS requests from (defaults to `http://localhost:5173`, matching Vite's default dev port) — update it if you run the frontend somewhere else.
 
 4. **Run database migrations:**
 

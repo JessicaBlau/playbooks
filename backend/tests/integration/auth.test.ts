@@ -116,4 +116,41 @@ describe('POST /auth/login', () => {
     const res = await request(app).post('/auth/login').send({});
     expect(res.status).toBe(400);
   });
+
+  it('logs in successfully when the email casing differs from registration (case-insensitive email)', async () => {
+    const email = freshEmail();
+    const password = 'password123';
+    // freshEmail() always returns a lowercase address; register with it as-is
+    // and log in with an uppercased version of the same address.
+    await request(app).post('/auth/register').send({ email, password });
+
+    const res = await request(app).post('/auth/login').send({ email: email.toUpperCase(), password });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toEqual(expect.any(String));
+    expect(res.body.user.email).toBe(email);
+  });
+});
+
+describe('POST /auth/register — concurrent duplicate submissions', () => {
+  it('resolves N concurrent registrations for the same email to exactly one 201 and the rest 409 (never 500)', async () => {
+    const email = freshEmail();
+    const password = 'password123';
+    const concurrency = 5;
+
+    const responses = await Promise.all(
+      Array.from({ length: concurrency }, () =>
+        request(app).post('/auth/register').send({ email, password })
+      )
+    );
+
+    const created = responses.filter((r) => r.status === 201);
+    const conflicted = responses.filter((r) => r.status === 409);
+    const other = responses.filter((r) => r.status !== 201 && r.status !== 409);
+
+    expect(other).toHaveLength(0); // in particular, no 500s
+    expect(created).toHaveLength(1);
+    expect(conflicted).toHaveLength(concurrency - 1);
+    conflicted.forEach((r) => expect(r.body.error).toEqual(expect.any(String)));
+  });
 });

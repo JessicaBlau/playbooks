@@ -28,3 +28,4 @@ yarn-error.log*
 # Worker-loop scratchpads (local only, never committed)
 .pipeline/
 .review/
+.claude/

@@ -87,6 +87,30 @@ describe('POST /playbooks', () => {
 
     expect(res.status).toBe(401);
   });
+
+  it('rejects a raw JSON `null` body with 400, not 500', async () => {
+    const { token } = await registerUser();
+    const res = await request(app)
+      .post('/playbooks')
+      .set('Authorization', `Bearer ${token}`)
+      .type('json')
+      .send('null');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(expect.any(String));
+  });
+
+  it('rejects malformed JSON syntax with 400 and an error message, not 500', async () => {
+    const { token } = await registerUser();
+    const res = await request(app)
+      .post('/playbooks')
+      .set('Authorization', `Bearer ${token}`)
+      .type('json')
+      .send('{not valid json');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual(expect.any(String));
+  });
 });
 
 describe('GET /playbooks', () => {
