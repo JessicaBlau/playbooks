@@ -10,6 +10,16 @@ services:
       - '5432:5432'
     volumes:
       - checkpoint_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      # -h 127.0.0.1 forces a TCP check. Without it, pg_isready connects via
+      # the local Unix socket, which is already up during the postgres
+      # image's temporary initdb-only instance — so an unqualified check can
+      # report "ready" before the real server (which listens on TCP) has
+      # actually started, during the brief restart between the two.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U checkpoint']
+      interval: 2s
+      timeout: 5s
+      retries: 20
 
 volumes:
   checkpoint_pg_data:

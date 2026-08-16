@@ -34,12 +34,25 @@ echo "==> Installing dependencies"
 npm install
 
 echo "==> Waiting for Postgres to accept connections"
-for _ in $(seq 1 20); do
-  if docker-compose exec -T postgres pg_isready -U checkpoint > /dev/null 2>&1; then
+# Waits on the container's own healthcheck (docker-compose.yml), not a
+# hand-rolled pg_isready loop here — the postgres image briefly runs a
+# temporary Unix-socket-only instance during initdb before the real,
+# TCP-listening server starts, and a plain unqualified pg_isready check
+# can't tell the two apart. The healthcheck already forces a TCP check.
+for _ in $(seq 1 30); do
+  status=$(docker inspect --format='{{.State.Health.Status}}' "$(docker-compose ps -q postgres)" 2>/dev/null || echo "unknown")
+  if [ "$status" = "healthy" ]; then
     break
   fi
   sleep 1
 done
+if [ "$status" != "healthy" ]; then
+  echo "Postgres did not become healthy in time. Check 'docker-compose logs postgres'." >&2
+  exit 1
+fi
+
+echo "==> Generating Prisma Client"
+(cd backend && npx prisma generate)
 
 echo "==> Applying database migrations"
 (cd backend && npx prisma migrate deploy)
