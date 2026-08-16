@@ -6,6 +6,7 @@
     "frontend"
   ],
   "scripts": {
+    "setup": "bash scripts/setup.sh",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "test:backend": "npm test -w backend",
