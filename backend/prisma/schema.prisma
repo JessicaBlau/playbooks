@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Trigger {
+  MALWARE_DETECTED
+  LOGIN_ATTEMPT
+  PHISHING_ALERT
+}
+
+enum Action {
+  ISOLATE_HOST
+  NOTIFY_ADMIN
+  BLOCK_IP
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  playbooks    Playbook[]
+}
+
+model Playbook {
+  id        String   @id @default(uuid())
+  name      String
+  trigger   Trigger
+  actions   Action[]
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
